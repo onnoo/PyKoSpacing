@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
+import warnings
+import os
+import sys
+
+# Ignore FutureWarning
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# Ignore Using TensorFlow backend.
+stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
 from keras.models import load_model
+sys.stderr = stderr
+
 from pykospacing.embedding_maker import load_vocab, encoding_and_padding
 import numpy as np
-import os
 import pkg_resources
 import re
-import warnings
 
 
 __all__ = ['spacing', ]
@@ -27,6 +37,7 @@ class pred_spacing:
     def get_spaced_sent(self, raw_sent):
         raw_sent_ = "«" + raw_sent + "»"
         raw_sent_ = raw_sent_.replace(' ', '^')
+        raw_sent_ = unicode(raw_sent_, "utf-8")
         sents_in = [raw_sent_, ]
         mat_in = encoding_and_padding(word2idx_dic=self.w2idx, sequences=sents_in, maxlen=200, padding='post', truncating='post')
         results = self.model.predict(mat_in)
@@ -42,7 +53,9 @@ class pred_spacing:
                 res_sent.append(' ')
             else:
                 res_sent.append(i)
-        subs = re.sub(self.pattern, ' ', ''.join(res_sent).replace('^', ' '))
+        res_sent = ''.join(res_sent).replace('^', ' ')
+        res_sent = res_sent.encode("utf-8")
+        subs = re.sub(self.pattern, ' ', res_sent)
         subs = subs.replace('«', '')
         subs = subs.replace('»', '')
         return subs
@@ -52,7 +65,8 @@ pred_spacing = pred_spacing(model, w2idx)
 
 
 def spacing(sent):
-    if len(sent) > 198:
-        warnings.warn('One sentence can not contain more than 198 characters. : {}'.format(sent))
+    sent = sent.replace(' ', '')
+    # if len(sent) > 198:
+    #     warnings.warn('One sentence can not contain more than 198 characters. : {}'.format(sent))
     spaced_sent = pred_spacing.get_spaced_sent(sent)
     return(spaced_sent.strip())
